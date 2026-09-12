@@ -1,0 +1,145 @@
+services:
+
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: order-payment-app
+        working_dir: /var/www/html
+        volumes:
+            - .:/var/www/html
+        depends_on:
+            mysql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            rabbitmq:
+                condition: service_healthy
+        networks:
+            - order-payment-network
+
+
+    nginx:
+        image: nginx:1.28-alpine
+        container_name: order-payment-nginx
+        ports:
+            - "8080:80"
+        volumes:
+            - .:/var/www/html
+            - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+        depends_on:
+            - app
+        networks:
+            - order-payment-network
+
+
+    mysql:
+        image: mysql:8.4
+        container_name: order-payment-mysql
+        environment:
+            MYSQL_DATABASE: order_payment
+            MYSQL_USER: order_user
+            MYSQL_PASSWORD: order_password
+            MYSQL_ROOT_PASSWORD: root_password
+        ports:
+            - "3307:3306"
+        volumes:
+            - mysql-data:/var/lib/mysql
+        command:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+        healthcheck:
+            test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+        networks:
+            - order-payment-network
+
+
+    redis:
+        image: redis:7.4-alpine
+        container_name: order-payment-redis
+        ports:
+            - "6380:6379"
+        volumes:
+            - redis-data:/data
+        command:
+            - redis-server
+            - --appendonly
+            - "yes"
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 5s
+            timeout: 3s
+            retries: 10
+        networks:
+            - order-payment-network
+
+
+    rabbitmq:
+        image: rabbitmq:4.1-management-alpine
+        container_name: order-payment-rabbitmq
+        environment:
+            RABBITMQ_DEFAULT_USER: order_user
+            RABBITMQ_DEFAULT_PASS: order_password
+            RABBITMQ_DEFAULT_VHOST: /
+        ports:
+            - "5673:5672"
+            - "15672:15672"
+        volumes:
+            - rabbitmq-data:/var/lib/rabbitmq
+        healthcheck:
+            test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+            interval: 5s
+            timeout: 5s
+            retries: 12
+        networks:
+            - order-payment-network
+
+    worker:
+        build:
+            context: .
+            dockerfile: Dockerfile
+
+        container_name: order-payment-worker
+
+        working_dir: /var/www/html
+
+        command:
+            - php
+            - artisan
+            - queue:work
+            - rabbitmq
+            - --queue=payments
+            - --sleep=1
+            - --tries=3
+            - --timeout=30
+
+        volumes:
+            - .:/var/www/html
+
+        depends_on:
+            mysql:
+                condition: service_healthy
+
+            redis:
+                condition: service_healthy
+
+            rabbitmq:
+                condition: service_healthy
+
+        restart: unless-stopped
+
+        networks:
+            - order-payment-network
+
+volumes:
+    mysql-data:
+    redis-data:
+    rabbitmq-data:
+
+
+networks:
+    order-payment-network:
+        driver: bridge
