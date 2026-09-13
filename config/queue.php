@@ -105,10 +105,11 @@ return [
             ],
 
             'options' => [
-                'heartbeat' => 10,
+                'heartbeat' => (int) env('RABBITMQ_HEARTBEAT', 0),
+                'connection_timeout' => 3.0,
+                'read_timeout' => 3.0,
+                'write_timeout' => 3.0,
             ],
-
-            'worker' => env('RABBITMQ_WORKER', 'default'),
 
             'after_commit' => true,
         ],

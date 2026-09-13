@@ -1,0 +1,19 @@
+[90m= [39m[34;4mIlluminate\Database\Eloquent\Collection[39;24m {#8228
+    [34mall[39m: [
+      [34;4mApp\Models\Product[39;24m {#8225
+        [34mid[39m: [35m1[39m,
+        [34mname[39m: [32m"[39m[32mTest Product[39m[32m"[39m,
+        [34mavailable_stock[39m: [35m94[39m,
+      },
+      [34;4mApp\Models\Product[39;24m {#8224
+        [34mid[39m: [35m2[39m,
+        [34mname[39m: [32m"[39m[32mTest Phone[39m[32m"[39m,
+        [34mavailable_stock[39m: [35m2[39m,
+      },
+      [34;4mApp\Models\Product[39;24m {#8227
+        [34mid[39m: [35m3[39m,
+        [34mname[39m: [32m"[39m[32mPhone Case[39m[32m"[39m,
+        [34mavailable_stock[39m: [35m50[39m,
+      },
+    ],
+  }

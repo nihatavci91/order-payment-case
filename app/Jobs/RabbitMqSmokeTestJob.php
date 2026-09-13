@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-
+use Illuminate\Support\Facades\Log;
 class RabbitMqSmokeTestJob implements ShouldQueue
 {
     use Queueable;
@@ -22,6 +22,8 @@ class RabbitMqSmokeTestJob implements ShouldQueue
      */
     public function handle(): void
     {
-        //
+        Log::info('RabbitMQ smoke test job processed.', [
+            'processed_at' => now()->toDateTimeString(),
+        ]);
     }
 }
