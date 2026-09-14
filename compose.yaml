@@ -3,6 +3,10 @@ x-runtime: &runtime
     working_dir: /var/www/html
     volumes:
         - .:/var/www/html
+        # Dependencies live in a Docker volume instead of the host folder. On Windows/macOS,
+        # reading thousands of vendor files through a bind mount is slow and can fail right
+        # after composer install, so PHP loads them from the container filesystem instead.
+        - vendor:/var/www/html/vendor
     networks:
         - order-payment-network
 
@@ -168,6 +172,7 @@ services:
         command: ["php", "vendor/bin/phpunit", "--configuration=phpunit.integration.xml"]
 
 volumes:
+    vendor:
     mysql-data:
     redis-data:
     rabbitmq-data:

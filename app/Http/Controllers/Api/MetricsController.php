@@ -10,8 +10,7 @@ use Illuminate\Support\Facades\DB;
 
 class MetricsController extends Controller
 {
-
-    //Metrics kullanımında Claude Code' dan destek aldım. Yapılan işlemleri de ayrıca code review yapıp idrak ettim.
+    // Metrics kullanımında Claude Code'dan destek aldım. Yapılan işlemleri de ayrıca code review yapıp idrak ettim.
     public function __invoke(): Response
     {
         $stores = DB::table('stores')->orderBy('id')->pluck('id');

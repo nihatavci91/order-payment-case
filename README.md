@@ -29,13 +29,30 @@ Bu komut şu container'ları başlatır:
 | `worker`, `worker-store-2` | Mağaza 1 ve mağaza 2 için ödeme işlerini işler |
 | `scheduler`, `scheduler-store-2` | Outbox gönderimi, süresi dolan siparişler, alarm logları |
 
-### Adım 2: Kurulumun bitmesini bekleyin
+> ⏱️ **İlk kurulum birkaç dakika sürebilir.** İlk seferde PHP imajı derlenir (eklentiler kurulur), ardından `setup` servisi Composer paketlerini kurar, migration ve demo verisini yükler. Diğer container'lar ancak bu adım bitince başlar. Bu sırada terminal bir süre hareketsiz görünebilir; bu normaldir, işlem takılmamıştır. İmaj bir kez oluştuktan sonra `docker compose up` genellikle 30 saniyenin altında tamamlanır.
+>
+> Açılıştan sonraki **ilk dakikada** ödemeler hemen işlenmeyebilir: scheduler görevlerini bir sonraki tam dakikada başlatır. Sonrasında ödemeler her 5 saniyede bir kuyruğa gönderilir.
+
+### Adım 2: Kurulumun ilerlemesini izleyin (isteğe bağlı)
+
+Başka bir terminalde:
 
 ```sh
 docker compose logs -f setup
 ```
 
-Migration'lar ve demo verisi yüklenince `setup` container'ı kendiliğinden kapanır (`Ctrl+C` ile log takibinden çıkabilirsiniz). Ek bir komut çalıştırmanıza gerek yok; API kullanıma hazırdır.
+Sırasıyla şu adımları görürsünüz: `Installing dependencies` (Composer) → `Running migrations` → `Seeding database` → `DemoDataSeeder ... DONE`. Son satırdan sonra `setup` container'ı kendiliğinden kapanır ve `Exited (0)` durumuna geçer; bu bir hata değildir. `Ctrl+C` ile log takibinden çıkabilirsiniz.
+
+Her şeyin ayakta olduğunu kontrol etmek için:
+
+```sh
+docker compose ps -a
+curl http://localhost:8080/up
+```
+
+`setup` dışındaki servisler `Up` durumunda ve `/up` adresi `200` dönüyorsa API kullanıma hazırdır. Ek bir komut çalıştırmanıza gerek yok.
+
+> **Not (`vendor` klasörü):** Composer paketleri, hız ve kararlılık için bilgisayardaki proje klasörüne değil `vendor` adlı Docker volume'üne kurulur. Bu yüzden proje klasöründeki `vendor` boş görünebilir. IDE'de (PhpStorm, VS Code) otomatik tamamlama için paketleri container'dan kopyalayabilirsiniz: `docker compose cp app:/var/www/html/vendor .`
 
 ### Demo verisi (otomatik yüklenir)
 
@@ -43,7 +60,7 @@ Migration'lar ve demo verisi yüklenince `setup` container'ı kendiliğinden kap
 
 - **Tekrar çalıştırmak güvenlidir.** Müşteri ve ürünler e-posta/SKU'ya göre, siparişler sabit idempotency anahtarlarına göre kontrol edilir. `docker compose up` kaç kez çalışırsa çalışsın veri çoğalmaz ve mevcut stok değişmez.
 - **Yalnızca `local` ve `testing` ortamında çalışır.** Production veritabanına demo verisi yazılmaz.
-- Siparişler doğrudan tabloya yazılmaz, gerçek servisler üzerinden oluşturulur. Stok rezervasyonu, ödeme kaydı ve outbox mesajları bu yüzden tutarlıdır; worker'lar ödemeleri birkaç saniye içinde işler.
+- Siparişler doğrudan tabloya yazılmaz, gerçek servisler üzerinden oluşturulur. Stok rezervasyonu, ödeme kaydı ve outbox mesajları bu yüzden tutarlıdır; worker'lar ödemeleri açılıştan sonraki ilk dakika içinde işler.
 
 Sıfırdan kurulumda oluşan ID'ler aşağıdaki gibidir. README'deki ve Postman collection'ındaki örnekler bu ID'leri kullanır.
 
@@ -91,7 +108,7 @@ docker compose exec app php artisan demo:products
 docker compose exec app php artisan demo:products --store=2
 ```
 
-Veritabanını tamamen sıfırlayıp demo verisiyle baştan başlamak için (**tüm yerel veri silinir**):
+Veritabanını tamamen sıfırlayıp demo verisiyle baştan başlamak için (**tüm yerel veri ve `vendor` volume'ü silinir; sonraki açılış ilk kurulum kadar sürer**):
 
 ```sh
 docker compose down -v
@@ -195,7 +212,7 @@ curl -i -X POST "http://localhost:8080/api/orders/$ORDER/payment" \
   -d '{"scenario":"success"}'
 ```
 
-Yanıt `202 Accepted` döner; ödeme kuyruğa alınır ve birkaç saniye içinde worker tarafından işlenir. Aynı istek tekrar gelirse aynı ödeme kaydı `200` ile döner, farklı `scenario` ile gelirse `409`. Diğer senaryolar için [Mock Ödeme Sağlayıcısı](#3-mock-ödeme-sağlayıcısı) bölümüne bakın.
+Yanıt `202 Accepted` döner; ödeme kuyruğa alınır ve birkaç saniye içinde worker tarafından işlenir (stack yeni açıldıysa ilk dakikada biraz daha uzun sürebilir). Aynı istek tekrar gelirse aynı ödeme kaydı `200` ile döner, farklı `scenario` ile gelirse `409`. Diğer senaryolar için [Mock Ödeme Sağlayıcısı](#3-mock-ödeme-sağlayıcısı) bölümüne bakın.
 
 **3) Ödeme ve sipariş durumunu takip et**
 
