@@ -1,5 +1,6 @@
 <?php
 
+use App\Logging\ConfigureJsonLogging;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -51,6 +52,25 @@ return [
     */
 
     'channels' => [
+        'workflow' => [
+            'driver' => 'stack',
+            'channels' => ['workflow_file', 'workflow_stderr'],
+            'ignore_exceptions' => true,
+        ],
+        'workflow_file' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/workflow.log'),
+            'level' => 'info',
+            'max_files' => 14,
+            'tap' => [ConfigureJsonLogging::class],
+        ],
+        'workflow_stderr' => [
+            'driver' => 'monolog',
+            'handler' => StreamHandler::class,
+            'handler_with' => ['stream' => 'php://stderr'],
+            'level' => 'info',
+            'tap' => [ConfigureJsonLogging::class],
+        ],
 
         'stack' => [
             'driver' => 'stack',
@@ -63,6 +83,7 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'tap' => [ConfigureJsonLogging::class],
         ],
 
         'daily' => [
@@ -71,6 +92,7 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'max_files' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
+            'tap' => [ConfigureJsonLogging::class],
         ],
 
         'monthly' => [
@@ -79,6 +101,7 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'max_files' => 3,
             'replace_placeholders' => true,
+            'tap' => [ConfigureJsonLogging::class],
         ],
 
         'slack' => [
@@ -88,6 +111,7 @@ return [
             'emoji' => env('LOG_SLACK_EMOJI', ':boom:'),
             'level' => env('LOG_LEVEL', 'critical'),
             'replace_placeholders' => true,
+            'tap' => [ConfigureJsonLogging::class],
         ],
 
         'papertrail' => [
@@ -118,12 +142,14 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'facility' => env('LOG_SYSLOG_FACILITY', LOG_USER),
             'replace_placeholders' => true,
+            'tap' => [ConfigureJsonLogging::class],
         ],
 
         'errorlog' => [
             'driver' => 'errorlog',
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'tap' => [ConfigureJsonLogging::class],
         ],
 
         'null' => [

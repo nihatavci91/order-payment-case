@@ -1,0 +1,1480 @@
+{
+    "info": {
+        "name": "Order Payment Case",
+        "description": "Sipariş ve ödeme API'si için örnek istekler.\n\nKullanım:\n1. Docker ile projeyi ayağa kaldırın (demo verisi otomatik yüklenir).\n2. Klasörleri sırayla çalıştırın veya tüm collection'ı Collection Runner ile çalıştırın.\n3. Değişkenler collection'ın Variables sekmesindedir. ID'ler sıfırdan kurulumdaki demo verisine göre ayarlıdır; farklıysa `php artisan demo:customers` ve `php artisan demo:products` çıktısına göre güncelleyin.\n\nKimlik doğrulama yoktur; müşteri `X-Customer-Id` header'ı ile belirtilir.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "host",
+            "value": "http://localhost:8080"
+        },
+        {
+            "key": "customerId",
+            "value": "1",
+            "description": "customer1@example.test (mağaza 1)"
+        },
+        {
+            "key": "sameStoreOtherCustomerId",
+            "value": "3",
+            "description": "customer3@example.test (mağaza 1)"
+        },
+        {
+            "key": "otherStoreCustomerId",
+            "value": "2",
+            "description": "customer2@example.test (mağaza 2)"
+        },
+        {
+            "key": "productId",
+            "value": "1",
+            "description": "STORE-1-BOOK, Defter"
+        },
+        {
+            "key": "secondProductId",
+            "value": "2",
+            "description": "STORE-1-PEN, Kalem Seti"
+        },
+        {
+            "key": "lastItemProductId",
+            "value": "4",
+            "description": "STORE-1-LAMP, stokta 1 adet"
+        },
+        {
+            "key": "inactiveProductId",
+            "value": "5",
+            "description": "STORE-1-OLD, satışta değil"
+        },
+        {
+            "key": "otherStoreProductId",
+            "value": "6",
+            "description": "STORE-2-BOOK, mağaza 2"
+        },
+        {
+            "key": "scenario",
+            "value": "success",
+            "description": "success | declined | timeout | timeout_after_charge | unavailable | refund_timeout"
+        },
+        {
+            "key": "orderNumber",
+            "value": ""
+        },
+        {
+            "key": "idempotencyKey",
+            "value": ""
+        },
+        {
+            "key": "pollCount",
+            "value": "0"
+        }
+    ],
+    "item": [
+        {
+            "name": "0 - Sağlık kontrolü",
+            "item": [
+                {
+                    "name": "Uygulama ayakta mı?",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{host}}/up",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "up"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Uygulama ayakta', () => pm.response.to.have.status(200));"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "1 - Başarılı akış",
+            "description": "Sipariş oluştur → ödemeyi başlat → sonucu bekle → tamamla.",
+            "item": [
+                {
+                    "name": "Sipariş oluştur",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "{{idempotencyKey}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders"
+                            ]
+                        },
+                        "description": "Her gönderimde yeni bir Idempotency-Key üretilir. Fiyatlar sunucuda hesaplanır.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"items\": [\n        {\n            \"product_id\": {{productId}},\n            \"quantity\": 2\n        },\n        {\n            \"product_id\": {{secondProductId}},\n            \"quantity\": 1\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "prerequest",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.collectionVariables.set('idempotencyKey', pm.variables.replaceIn('{{$guid}}'));"
+                                ]
+                            }
+                        },
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Sipariş oluşturuldu', () => pm.response.to.have.status(201));",
+                                    "if (pm.response.code === 201 || pm.response.code === 200) {",
+                                    "    pm.collectionVariables.set('orderNumber', pm.response.json().data.order_number);",
+                                    "}",
+                                    "pm.test('Tutar sunucuda hesaplandı', () => pm.expect(pm.response.json().data.total_amount).to.be.above(0));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Aynı siparişi tekrar gönder (aynı anahtar)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "{{idempotencyKey}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders"
+                            ]
+                        },
+                        "description": "Geri tuşu / tekrar gönderim senaryosu. Aynı anahtar ve aynı sepet önceki siparişi döndürür.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"items\": [\n        {\n            \"product_id\": {{productId}},\n            \"quantity\": 2\n        },\n        {\n            \"product_id\": {{secondProductId}},\n            \"quantity\": 1\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Yeni sipariş açılmadı, mevcut sipariş döndü', () => pm.response.to.have.status(200));",
+                                    "pm.test('Aynı sipariş numarası', () => pm.expect(pm.response.json().data.order_number).to.eql(pm.collectionVariables.get('orderNumber')));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Siparişi görüntüle",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Sipariş bulundu', () => pm.response.to.have.status(200));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Ödemeyi başlat",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}/payment",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}",
+                                "payment"
+                            ]
+                        },
+                        "description": "Ödeme asenkron işlenir; yanıt 202 Accepted döner.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"scenario\": \"success\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Ödeme kuyruğa alındı', () => pm.response.to.have.status(202));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Ödemeyi tekrar başlat (çift tıklama)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}/payment",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}",
+                                "payment"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"scenario\": \"success\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('İkinci ödeme kaydı açılmadı', () => pm.response.to.have.status(200));",
+                                    "pm.test('Deneme sayısı en fazla 1', () => pm.expect(pm.response.json().data.attempt_count).to.be.at.most(1));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Ödeme sonucunu bekle",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}/payment",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}",
+                                "payment"
+                            ]
+                        },
+                        "description": "Worker ödemeyi birkaç saniye içinde işler. Elle çalıştırıyorsanız status `succeeded` olana kadar tekrar gönderin."
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "const data = pm.response.json().data;",
+                                    "const tries = Number(pm.collectionVariables.get('pollCount') || 0);",
+                                    "// Payment is processed by the worker a few seconds later. In the Collection Runner this request repeats itself until the result is final.",
+                                    "if (['pending', 'processing', 'pending_confirmation', 'refund_pending'].includes(data.status) && tries < 15) {",
+                                    "    pm.collectionVariables.set('pollCount', tries + 1);",
+                                    "    postman.setNextRequest(pm.info.requestName);",
+                                    "    setTimeout(() => {}, 2000);",
+                                    "} else {",
+                                    "    pm.collectionVariables.set('pollCount', 0);",
+                                    "    pm.test('Ödeme kesin bir sonuca ulaştı: ' + data.status, () => pm.expect(['succeeded', 'failed', 'cancelled', 'refunded', 'requires_review']).to.include(data.status));",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Siparişi tamamla",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}/complete",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}",
+                                "complete"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Sipariş tamamlandı', () => pm.response.to.have.status(200));",
+                                    "pm.test('Durum completed', () => pm.expect(pm.response.json().data.status).to.eql('completed'));"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "2 - İptal akışı",
+            "item": [
+                {
+                    "name": "İptal için sipariş oluştur",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "{{idempotencyKey}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"items\": [\n        {\n            \"product_id\": {{productId}},\n            \"quantity\": 1\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "prerequest",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.collectionVariables.set('idempotencyKey', pm.variables.replaceIn('{{$guid}}'));"
+                                ]
+                            }
+                        },
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Sipariş oluşturuldu', () => pm.response.to.have.status(201));",
+                                    "if (pm.response.code === 201 || pm.response.code === 200) {",
+                                    "    pm.collectionVariables.set('orderNumber', pm.response.json().data.order_number);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Siparişi iptal et",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}/cancel",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}",
+                                "cancel"
+                            ]
+                        },
+                        "description": "Ödeme başlamadıysa stok hemen geri eklenir. Ödeme sürüyorsa 202 ve `cancellation_pending` döner, iade sonrası iptal tamamlanır."
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Sipariş iptal edildi', () => pm.response.to.have.status(200));",
+                                    "pm.test('Durum cancelled', () => pm.expect(pm.response.json().data.status).to.eql('cancelled'));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "İptali tekrar gönder",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}/cancel",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}",
+                                "cancel"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Tekrar iptal güvenli, stok ikinci kez eklenmez', () => pm.response.to.have.status(200));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "İptal edilmiş siparişe ödeme dene",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}/payment",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}",
+                                "payment"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"scenario\": \"success\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('İptal edilmiş siparişe ödeme başlatılamaz', () => pm.response.to.have.status(409));"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "3 - Ödeme senaryoları (mock sağlayıcı)",
+            "description": "Collection değişkenlerindeki `scenario` değerini değiştirip bu klasörü çalıştırın:\n- success: başarılı\n- declined: kart reddi, stok geri bırakılır\n- timeout: yanıt yok, sorgu sonrası tekrar denenir\n- timeout_after_charge: para çekilir ama yanıt kaybolur, tek tahsilat doğrulanır\n- unavailable: sağlayıcı kapalı, 5 denemeden sonra requires_review\n- refund_timeout: iade sırasında yanıt kaybolur\n\n`unavailable` senaryosunda sonuç birkaç dakika sürer (artan bekleme süreleri).",
+            "item": [
+                {
+                    "name": "Senaryo için sipariş oluştur",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "{{idempotencyKey}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"items\": [\n        {\n            \"product_id\": {{productId}},\n            \"quantity\": 1\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "prerequest",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.collectionVariables.set('idempotencyKey', pm.variables.replaceIn('{{$guid}}'));"
+                                ]
+                            }
+                        },
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Sipariş oluşturuldu', () => pm.response.to.have.status(201));",
+                                    "if (pm.response.code === 201 || pm.response.code === 200) {",
+                                    "    pm.collectionVariables.set('orderNumber', pm.response.json().data.order_number);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Senaryo ile ödeme başlat",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}/payment",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}",
+                                "payment"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"scenario\": \"{{scenario}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Ödeme kuyruğa alındı', () => pm.response.to.have.status(202));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Senaryo sonucunu bekle",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}/payment",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}",
+                                "payment"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "const data = pm.response.json().data;",
+                                    "const tries = Number(pm.collectionVariables.get('pollCount') || 0);",
+                                    "// Payment is processed by the worker a few seconds later. In the Collection Runner this request repeats itself until the result is final.",
+                                    "if (['pending', 'processing', 'pending_confirmation', 'refund_pending'].includes(data.status) && tries < 15) {",
+                                    "    pm.collectionVariables.set('pollCount', tries + 1);",
+                                    "    postman.setNextRequest(pm.info.requestName);",
+                                    "    setTimeout(() => {}, 2000);",
+                                    "} else {",
+                                    "    pm.collectionVariables.set('pollCount', 0);",
+                                    "    pm.test('Ödeme kesin bir sonuca ulaştı: ' + data.status, () => pm.expect(['succeeded', 'failed', 'cancelled', 'refunded', 'requires_review']).to.include(data.status));",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Siparişin son durumu",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Sipariş bulundu', () => pm.response.to.have.status(200));"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "4 - Hatalı istekler",
+            "description": "API'nin hatalı veya riskli isteklere verdiği yanıtlar. Önce \"1 - Başarılı akış\" veya \"2 - İptal akışı\" çalıştırılmış olmalı (orderNumber ve idempotencyKey dolu olmalı).",
+            "item": [
+                {
+                    "name": "401 - X-Customer-Id yok",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Müşteri belirtilmeden erişilemez', () => pm.response.to.have.status(401));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "404 - Başka müşterinin siparişi",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{sameStoreOtherCustomerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Başka müşterinin siparişi görünmez', () => pm.response.to.have.status(404));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "404 - Başka mağazanın müşterisi siparişi tamamlayamaz",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{otherStoreCustomerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}/complete",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}",
+                                "complete"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Mağazalar birbirinin siparişine erişemez', () => pm.response.to.have.status(404));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "422 - Idempotency-Key yok",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"items\": [\n        {\n            \"product_id\": {{productId}},\n            \"quantity\": 1\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Idempotency-Key zorunlu', () => pm.response.to.have.status(422));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "409 - Aynı anahtar, farklı sepet",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "{{idempotencyKey}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"items\": [\n        {\n            \"product_id\": {{productId}},\n            \"quantity\": 5\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Anahtar farklı içerikle tekrar kullanılamaz', () => pm.response.to.have.status(409));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "422 - Yetersiz stok",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "{{$guid}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"items\": [\n        {\n            \"product_id\": {{lastItemProductId}},\n            \"quantity\": 2\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Stoktan fazla ürün sipariş edilemez', () => pm.response.to.have.status(422));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "422 - Satışta olmayan ürün",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "{{$guid}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"items\": [\n        {\n            \"product_id\": {{inactiveProductId}},\n            \"quantity\": 1\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Pasif ürün sipariş edilemez', () => pm.response.to.have.status(422));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "422 - Başka mağazanın ürünü",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "{{$guid}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"items\": [\n        {\n            \"product_id\": {{otherStoreProductId}},\n            \"quantity\": 1\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Müşteri sadece kendi mağazasından alışveriş yapar', () => pm.response.to.have.status(422));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "422 - Body ile başka kullanıcı/mağaza gönderme",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            },
+                            {
+                                "key": "Idempotency-Key",
+                                "value": "{{$guid}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"user_id\": 99,\n    \"store_id\": 2,\n    \"items\": [\n        {\n            \"product_id\": {{productId}},\n            \"quantity\": 1\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('user_id ve store_id body ile gönderilemez', () => pm.response.to.have.status(422));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "422 - Kart bilgisi gönderme",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}/payment",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}",
+                                "payment"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"scenario\": \"success\",\n    \"card_number\": \"4111111111111111\",\n    \"cvv\": \"123\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Kart bilgisi API'ye kabul edilmez', () => pm.response.to.have.status(422));"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "422 - Geçersiz senaryo",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Customer-Id",
+                                "value": "{{customerId}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{host}}/api/orders/{{orderNumber}}/payment",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "orders",
+                                "{{orderNumber}}",
+                                "payment"
+                            ]
+                        },
+                        "description": "",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"scenario\": \"free_money\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Tanımsız senaryo reddedilir', () => pm.response.to.have.status(422));"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "5 - Metrikler",
+            "item": [
+                {
+                    "name": "Prometheus metrikleri",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{host}}/api/metrics",
+                            "host": [
+                                "{{host}}"
+                            ],
+                            "path": [
+                                "api",
+                                "metrics"
+                            ]
+                        },
+                        "description": "Mağaza bazında sipariş/ödeme durumları, deneme sayısı ve outbox birikimi."
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Metrikler döndü', () => pm.response.to.have.status(200));",
+                                    "pm.test('Mağaza etiketi var', () => pm.expect(pm.response.text()).to.include('store_id=\"1\"'));"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

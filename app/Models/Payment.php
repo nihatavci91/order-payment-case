@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\PaymentStatus;
+use App\Support\Money;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +16,12 @@ class Payment extends Model
 
     protected $fillable = [
         'order_id',
+        'scenario',
+        'operation',
+        'request_id',
+        'processing_token',
+        'processing_expires_at',
+        'refunded_at',
         'payment_number',
         'status',
         'provider',
@@ -28,6 +36,8 @@ class Payment extends Model
         'paid_at',
         'failed_at',
     ];
+
+    protected $hidden = ['idempotency_key', 'scenario', 'processing_token', 'last_error_message'];
 
     protected static function booted(): void
     {
@@ -46,8 +56,16 @@ class Payment extends Model
             'attempt_count' => 'integer',
             'next_retry_at' => 'datetime',
             'paid_at' => 'datetime',
+            'processing_expires_at' => 'datetime',
+            'refunded_at' => 'datetime',
             'failed_at' => 'datetime',
         ];
+    }
+
+    /** Getter: $payment->formatted_amount => "250,00 TRY". */
+    protected function formattedAmount(): Attribute
+    {
+        return Attribute::make(get: fn () => Money::format($this->amount, $this->currency));
     }
 
     public function order(): BelongsTo

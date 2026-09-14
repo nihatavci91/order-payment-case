@@ -1,5 +1,7 @@
 <?php
 
+use App\Queue\ConfirmedRabbitMQQueue;
+
 return [
 
     /*
@@ -91,6 +93,7 @@ return [
 
         'rabbitmq' => [
             'driver' => 'rabbitmq',
+            'worker' => ConfirmedRabbitMQQueue::class,
 
             'queue' => env('RABBITMQ_QUEUE', 'payments'),
 

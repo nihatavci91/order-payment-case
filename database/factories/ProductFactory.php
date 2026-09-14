@@ -18,7 +18,8 @@ class ProductFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'sku' => fake()->unique()->bothify('SKU-########'), 'name' => 'Notebook', 'store_id' => 1,
+            'price' => 12500, 'currency' => 'TRY', 'available_stock' => 10, 'is_active' => true,
         ];
     }
 }
