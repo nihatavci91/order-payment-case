@@ -32,6 +32,8 @@ class User extends Authenticatable
         ];
     }
 
+    // Claude Code desteğiyle yazıldı: email setter'ı. Sanctum'un HasApiTokens trait'i de bu süreçte kaldırıldı.
+
     /** Setter: emails are stored lowercase so "Customer1@Example.test" and "customer1@example.test" are the same user. */
     protected function email(): Attribute
     {

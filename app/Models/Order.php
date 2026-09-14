@@ -67,6 +67,8 @@ class Order extends Model
         }
     }
 
+    // Claude Code desteğiyle yazıldı: formatted_total getter'ı.
+
     /** Getter: $order->formatted_total => "250,00 TRY". */
     protected function formattedTotal(): Attribute
     {

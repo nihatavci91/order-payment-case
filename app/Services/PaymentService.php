@@ -37,6 +37,7 @@ class PaymentService
             if ($order->stockReservations()->where('expires_at', '<=', now())->exists()) {
                 throw new WorkflowException('The stock reservation has expired. Create a new order.');
             }
+            // Claude Code desteğiyle düzeltildi: attempt_count yanıtta null yerine 0 dönsün diye açıkça veriliyor.
             $payment = $order->payment()->create([
                 'status' => PaymentStatus::PENDING, 'provider' => 'mock', 'scenario' => $scenario,
                 'idempotency_key' => (string) Str::uuid(), 'request_id' => $requestId,

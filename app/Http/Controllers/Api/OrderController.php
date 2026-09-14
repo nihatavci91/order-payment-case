@@ -18,6 +18,7 @@ class OrderController extends Controller
         $order = $orders->create($request->user(), $request->validated('items'), $request->validated('idempotency_key'));
 
         $response = (new OrderResource($order))->response()->setStatusCode($order->wasRecentlyCreated ? 201 : 200);
+        // Claude Code desteğiyle düzeltildi: tekrarlanan istek 200 yerine 302 dönüyordu.
         // PHP turns a 200 response with a Location header into a 302, so only a new resource gets it.
         if ($order->wasRecentlyCreated) {
             $response->header('Location', route('orders.show', $order->order_number));

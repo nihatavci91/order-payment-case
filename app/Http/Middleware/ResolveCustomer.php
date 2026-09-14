@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
+ * Claude Code desteğiyle yazıldı: Sanctum kaldırıldıktan sonra müşterinin X-Customer-Id header'ı ile tanımlanması.
+ *
  * Authentication is out of scope for this case. The customer is identified by the
  * X-Customer-Id header so that orders stay isolated per customer and per store.
  * In production this would be replaced by a real auth layer (token, gateway, etc.).

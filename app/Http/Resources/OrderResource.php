@@ -9,6 +9,7 @@ class OrderResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        // Claude Code desteğiyle eklendi: user_id, store_id ve formatted_total alanları.
         return [
             'order_number' => $this->order_number, 'status' => $this->status->value,
             'user_id' => $this->user_id, 'store_id' => $this->store_id,

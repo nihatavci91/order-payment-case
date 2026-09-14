@@ -62,6 +62,8 @@ class Payment extends Model
         ];
     }
 
+    // Claude Code desteğiyle yazıldı: formatted_amount getter'ı.
+
     /** Getter: $payment->formatted_amount => "250,00 TRY". */
     protected function formattedAmount(): Attribute
     {

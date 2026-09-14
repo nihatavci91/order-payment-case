@@ -9,6 +9,7 @@ use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+// Claude Code desteğiyle yazıldı: demo verisinin çoğalmadığını ve production'da yüklenmediğini doğrular.
 class DemoDataSeederTest extends TestCase
 {
     use RefreshDatabase;

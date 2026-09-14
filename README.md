@@ -5,7 +5,7 @@ Bir müşterinin siparişi oluşturmasından, ödemenin kesinleşip siparişin i
 - **Teknolojiler:** Laravel 13, PHP 8.4, MySQL 8.4, RabbitMQ 4.1, Redis 7.4, Nginx
 - **Tutarlar** kuruş cinsinden tam sayı olarak tutulur (`12500` = 125,00 TL).
 - Mimari kararlar, kullanılan pattern'ler ve alternatifler için: [DESIGN.md](DESIGN.md)
-- Projenin tasarımında ve geliştirilmesinde yapay zeka destekli geliştirme aracı **[Claude Code](https://claude.com/claude-code)** kullanılmıştır. Ayrıntılar: [DESIGN.md › Kaynaklar](DESIGN.md#11-kaynaklar)
+- Projenin bazı bölümlerinde **[Claude Code](https://claude.com/claude-code)** kullanılmıştır. Kullanılan yerler kod içerisinde yorum satırında belirtilmiştir.
 
 ---
 

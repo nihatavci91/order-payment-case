@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+// Claude Code desteğiyle güncellendi: Sanctum yerine X-Customer-Id header'ı ile müşteri tanımlama testleri.
 class AuthenticationTest extends TestCase
 {
     use RefreshDatabase;

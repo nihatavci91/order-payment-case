@@ -9,6 +9,7 @@ class PaymentResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        // Claude Code desteğiyle eklendi: formatted_amount alanı.
         return [
             'payment_number' => $this->payment_number, 'status' => $this->status->value,
             'amount' => $this->amount, 'formatted_amount' => $this->formatted_amount, 'currency' => $this->currency,

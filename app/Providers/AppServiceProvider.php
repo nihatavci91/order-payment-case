@@ -18,6 +18,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Claude Code desteğiyle düzenlendi: token kaldırıldığı için istek sınırı kullanıcı yerine IP adresine göre uygulanıyor.
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));
     }
 }

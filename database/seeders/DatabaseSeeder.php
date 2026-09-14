@@ -8,6 +8,7 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // Claude Code desteğiyle düzenlendi: demo verisi DemoDataSeeder'a taşındı.
         // Demo data must never reach a production database.
         if (! app()->environment('local', 'testing')) {
             return;

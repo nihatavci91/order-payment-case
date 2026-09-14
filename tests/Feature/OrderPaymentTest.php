@@ -22,6 +22,11 @@ use Illuminate\Support\Str;
 use Mockery;
 use Tests\TestCase;
 
+/**
+ * Claude Code desteğiyle güncellendi: Sanctum::actingAs yerine X-Customer-Id header'ı (actAs),
+ * müşteri/mağaza izolasyonu testleri, mağaza bazlı metrik testi, formatted_total ve
+ * tekrar istekte Location header'ı olmaması (302 hatası) kontrolleri.
+ */
 class OrderPaymentTest extends TestCase
 {
     use RefreshDatabase;

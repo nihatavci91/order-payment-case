@@ -18,6 +18,7 @@ class PaymentController extends Controller
         $payment = $payments->request($model->id, $request->validated('scenario', 'success'), $request->attributes->get('request_id'));
 
         $response = (new PaymentResource($payment))->response()->setStatusCode($payment->wasRecentlyCreated ? 202 : 200);
+        // Claude Code desteğiyle düzeltildi: tekrarlanan ödeme isteği 200 yerine 302 dönüyordu.
         // Same as orders: a repeated request must stay 200, not become a redirect.
         if ($payment->wasRecentlyCreated) {
             $response->header('Location', route('payments.show', $model->order_number));

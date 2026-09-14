@@ -54,6 +54,7 @@ Artisan::command('payments:reconcile {payment} {--store=1}', function (PaymentSe
     $this->info('Provider lookup scheduled. Stock remains reserved until the outcome is known.');
 })->purpose('Resume provider reconciliation after an operator investigates an alert');
 
+// Claude Code desteğiyle yazıldı: demo:customers komutu (Sanctum ile birlikte kaldırılan demo:token yerine).
 Artisan::command('demo:customers', function () {
     if (! app()->environment('local', 'testing')) {
         $this->error('Demo commands are available only in local/testing environments.');
@@ -65,6 +66,7 @@ Artisan::command('demo:customers', function () {
     return 0;
 })->purpose('List demo customers and their stores');
 
+// Claude Code desteğiyle düzenlendi: fiyatın formatted_price getter'ı ile gösterilmesi ve Active sütunu.
 Artisan::command('demo:products {--store=1}', function () {
     if (! app()->environment('local', 'testing')) {
         $this->error('Demo commands are available only in local/testing environments.');

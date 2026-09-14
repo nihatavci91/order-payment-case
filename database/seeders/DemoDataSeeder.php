@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
+ * Claude Code desteğiyle yazıldı: Docker kurulumunda otomatik yüklenen, tekrar çalıştırılabilir demo verisi.
+ *
  * Demo data for local development and reviewers.
  *
  * It runs automatically from docker/setup.sh on every `docker compose up`, so it must be

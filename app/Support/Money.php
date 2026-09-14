@@ -5,6 +5,8 @@ namespace App\Support;
 class Money
 {
     /**
+     * Claude Code desteğiyle yazıldı: getter'larda kullanılan ortak para biçimlendirme.
+     *
      * Amounts are stored as integer minor units (kuruş) to avoid float rounding.
      * This helper is for display only, e.g. 25000 => "250,00 TRY".
      */

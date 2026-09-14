@@ -31,6 +31,8 @@ class Product extends Model
         ];
     }
 
+    // Claude Code desteğiyle yazıldı: aşağıdaki getter/setter'lar (accessor/mutator).
+
     /** Setter: SKUs are stored uppercase without surrounding spaces ("  store-1-book " => "STORE-1-BOOK"). */
     protected function sku(): Attribute
     {

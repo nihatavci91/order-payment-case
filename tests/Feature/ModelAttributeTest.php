@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Support\Money;
 use Tests\TestCase;
 
+// Claude Code desteğiyle yazıldı: model getter/setter'larını doğrular.
 class ModelAttributeTest extends TestCase
 {
     public function test_setters_normalise_values_before_they_are_stored(): void

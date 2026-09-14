@@ -1,7 +1,7 @@
 {
     "info": {
         "name": "Order Payment Case",
-        "description": "Sipariş ve ödeme API'si için örnek istekler.\n\nKullanım:\n1. Docker ile projeyi ayağa kaldırın (demo verisi otomatik yüklenir).\n2. Klasörleri sırayla çalıştırın veya tüm collection'ı Collection Runner ile çalıştırın.\n3. Değişkenler collection'ın Variables sekmesindedir. ID'ler sıfırdan kurulumdaki demo verisine göre ayarlıdır; farklıysa `php artisan demo:customers` ve `php artisan demo:products` çıktısına göre güncelleyin.\n\nKimlik doğrulama yoktur; müşteri `X-Customer-Id` header'ı ile belirtilir.",
+        "description": "Sipariş ve ödeme API'si için örnek istekler. Bu collection Claude Code desteğiyle hazırlanmıştır.\n\nKullanım:\n1. Docker ile projeyi ayağa kaldırın (demo verisi otomatik yüklenir).\n2. Klasörleri sırayla çalıştırın veya tüm collection'ı Collection Runner ile çalıştırın.\n3. Değişkenler collection'ın Variables sekmesindedir. ID'ler sıfırdan kurulumdaki demo verisine göre ayarlıdır; farklıysa `php artisan demo:customers` ve `php artisan demo:products` çıktısına göre güncelleyin.\n\nKimlik doğrulama yoktur; müşteri `X-Customer-Id` header'ı ile belirtilir.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "variable": [
